@@ -26,27 +26,28 @@ SOFTWARE.
 
 const canvas = document.getElementsByTagName('canvas')[0];
 resizeCanvas();
+var sampleVal = [];
 
 let config = {
-    SIM_RESOLUTION: 128,
+    SIM_RESOLUTION: 512,
     DYE_RESOLUTION: 1024,
     CAPTURE_RESOLUTION: 512,
     DENSITY_DISSIPATION: 1,
-    VELOCITY_DISSIPATION: 0.2,
+    VELOCITY_DISSIPATION: 0.5,
     PRESSURE: 0.8,
     PRESSURE_ITERATIONS: 20,
     CURL: 30,
-    SPLAT_RADIUS: 0.25,
+    SPLAT_RADIUS: 0.55,
     SPLAT_FORCE: 6000,
     SHADING: true,
     COLORFUL: true,
-    COLOR_UPDATE_SPEED: 10,
+    COLOR_UPDATE_SPEED: 5,
     PAUSED: false,
     BACK_COLOR: { r: 0, g: 0, b: 0 },
     TRANSPARENT: false,
     BLOOM: true,
     BLOOM_ITERATIONS: 8,
-    BLOOM_RESOLUTION: 256,
+    BLOOM_RESOLUTION: 512,
     BLOOM_INTENSITY: 0.8,
     BLOOM_THRESHOLD: 0.6,
     BLOOM_SOFT_KNEE: 0.7,
@@ -1422,62 +1423,94 @@ function correctRadius (radius) {
 // interval for pixel movement in ms
 const sampleRate = 20;
 
+
+
 // sample data to test pixel movement
-const sampleVal = [
-    { x: 0.15, y:0.25},
-    { x: 0.75, y:0.25},
-    { x: 0.85, y:0.45},
-    { x: 0.25, y:0.35},
-    { x: 0.35, y:0.25},
-    { x: 0.65, y:0.65},
-    { x: 0.45, y:0.25},
-    { x: 0.75, y:0.25},
-    { x: 0.65, y:0.45},
-    { x: 0.35, y:0.35},
-    { x: 0.15, y:0.25},
-    { x: 0.65, y:0.65},
-    { x: 0.75, y:0.25},
-    { x: 0.15, y:0.25},
-    { x: 0.85, y:0.45},
-    { x: 0.95, y:0.35},
-    { x: 0.45, y:0.25},
-    { x: 0.55, y:0.65},
-    { x: 0.45, y:0.25},
-    { x: 0.30, y:0.25},
-    { x: 0.45, y:0.45},
-    { x: 0.15, y:0.35},
-    { x: 0.45, y:0.25},
-    { x: 0.75, y:0.65},
-    { x: 0.65, y:0.25},
-    { x: 0.85, y:0.25},
-    { x: 0.95, y:0.45},
-    { x: 0.35, y:0.35},
-    { x: 0.45, y:0.25},
-    { x: 0.55, y:0.65}
-]
+// const sampleVal = [
+//     { x: 0.15, y:0.25},
+//     { x: 0.75, y:0.25},
+//     { x: 0.85, y:0.45},
+//     { x: 0.25, y:0.35},
+//     { x: 0.35, y:0.25},
+//     { x: 0.65, y:0.65},
+//     { x: 0.45, y:0.25},
+//     { x: 0.75, y:0.25},
+//     { x: 0.65, y:0.45},
+//     { x: 0.35, y:0.35},
+//     { x: 0.15, y:0.25},
+//     { x: 0.65, y:0.65},
+//     { x: 0.75, y:0.25},
+//     { x: 0.15, y:0.25},
+//     { x: 0.85, y:0.45},
+//     { x: 0.95, y:0.35},
+//     { x: 0.45, y:0.25},
+//     { x: 0.55, y:0.65},
+//     { x: 0.45, y:0.25},
+//     { x: 0.30, y:0.25},
+//     { x: 0.45, y:0.45},
+//     { x: 0.15, y:0.35},
+//     { x: 0.45, y:0.25},
+//     { x: 0.75, y:0.65},
+//     { x: 0.65, y:0.25},
+//     { x: 0.85, y:0.25},
+//     { x: 0.95, y:0.45},
+//     { x: 0.35, y:0.35},
+//     { x: 0.45, y:0.25},
+//     { x: 0.55, y:0.65}
+// ]
+    
+$.getJSON("json/50000file.json", function(json) {
+        console.log(json); // this will show the info it in firebug console
+        sampleVal = json;
+    }); 
+
+function setInitialPoint(){
+        let posX = scaleByPixelRatio(window.screen.width / 2);
+        let posY = scaleByPixelRatio(window.screen.height / 2);
+        console.log("Starting position:", posX, posY)
+        let pointer = pointers.find(p => p.id == -1);
+        if (pointer == null)
+            pointer = new pointerPrototype();
+        updatePointerDownData(pointer, -1, posX, posY);
+    }
+
+let streamerr = "Error"
 
 function startMusic(){
-    console.log("Runnning this now")
-    let posX = scaleByPixelRatio(window.screen.width / 2);
-    let posY = scaleByPixelRatio(window.screen.height / 2);
-    console.log("Starting position:", posX, posY)
-    let pointer = pointers.find(p => p.id == -1);
-    if (pointer == null)
-        pointer = new pointerPrototype();
-    updatePointerDownData(pointer, -1, posX, posY);
+    setInitialPoint()
 
-    sampleVal.forEach(position => {
-        setTimeout( () => { 
-            updateAudioPointerMove(position);
-        }, sampleRate);
-    })
+    fetch("/streamAudio").then((response) => { 
+      return can.ndjsonStream(response.body);
+
+     }).then(todosStream => { 
+      var reader = todosStream.getReader();
+
+      reader.read().then(result => {
+        if (result.done) {
+          console.log("Done.");
+          return;
+        }
+        console.log(result.value);
+
+        // sampleVal.forEach(position => {
+        // setTimeout( () => { 
+        updateAudioPointerMove(result.value);
+            // }, sampleRate);
+        // })
+        // render(result.value);
+        
+      }, streamerr);
+     });
+    
 }
 
 function updateAudioPointerMove(position){
     let pointer = pointers[0];
     if (!pointer.down) return;
-    let posX = scaleByPixelRatio(position.x * window.screen.width);
-    let posY = scaleByPixelRatio(position.y * window.screen.height);
+    let normVal = normaliseData(position);
+    console.log(normVal);
+    let posX = scaleByPixelRatio(normVal.x);
+    let posY = scaleByPixelRatio(normVal.y);
     console.log("New position:", posX, posY)
     updatePointerMoveData(pointer, posX, posY);
 }
@@ -1486,9 +1519,13 @@ function stopMusic(){
     updatePointerUpData(pointers[0]);
 }
 
-function normaliseData(){
-    let normX = (valX - 0 / 128);    
-    let normY = (valX - 0 / 128);  
+function normaliseData(position){
+    let normX = (position.x - 0 / 512);    
+    let normY = (position.y - 0 / 512);  
+    return {
+        x: normX,
+        y: normY
+    }
 }
 
 // Auto run function on page load
